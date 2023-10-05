@@ -1,0 +1,6 @@
+model/ImageMetaData.class
+model/ErrorMsg.class
+model/AlbumsProfile.class
+model/AlbumInfo.class
+model/AlbumsBody.class
+AlbumsServlet.class
