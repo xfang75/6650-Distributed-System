@@ -10,3 +10,7 @@ type album struct {
 var albums = []album{
 	{ Artist: "Sex Pistols", Title: "Never Mind The Bollocks!", Year: "1977" },
 }
+
+var albumSample = album{
+	Artist: "Sex Pistols", Title: "Never Mind The Bollocks!", Year: "1977",
+}
