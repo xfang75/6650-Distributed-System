@@ -190,6 +190,11 @@
       <version>${gson-version}</version>
     </dependency>
     <dependency>
+      <groupId>javax.annotation</groupId>
+      <artifactId>jsr250-api</artifactId>
+      <version>1.0</version>
+    </dependency>
+    <dependency>
       <groupId>io.gsonfire</groupId>
       <artifactId>gson-fire</artifactId>
       <version>${gson-fire-version}</version>
