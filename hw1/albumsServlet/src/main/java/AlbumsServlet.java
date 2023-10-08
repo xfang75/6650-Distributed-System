@@ -9,17 +9,19 @@ import model.ErrorMsg;
 import model.ImageMetaData;
 
 @WebServlet(name = "AlbumsServlet", value = "/albums/*")
+@MultipartConfig(fileSizeThreshold = 10485760,    // 10 MB
+    maxFileSize = 10485760,        // 10 MB
+    maxRequestSize = 209715200)    // 200 MB
 public class AlbumsServlet extends HttpServlet {
   private Gson gson = new Gson();
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
     res.setContentType("application/json");
-    res.setContentType("text/plain");
     res.setCharacterEncoding("UTF-8");
     String urlPath = req.getPathInfo();
 
-    // check we have a URL!
+    // check we have a non empty URL
     if (urlPath == null || urlPath.isEmpty()) {
       res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
       ErrorMsg error = new ErrorMsg().msg("Empty albums get request");
@@ -64,15 +66,16 @@ public class AlbumsServlet extends HttpServlet {
   protected void doPost(HttpServletRequest req, HttpServletResponse res)
       throws ServletException, IOException {
     res.setContentType("application/json");
+//    res.setCharacterEncoding("UTF-8");
     Part image = req.getPart("image");
     Part profile = req.getPart("profile");
-    if (!isPostUrlValid(req) || image.getSize() == 0 || profile.getSize() == 0) {
-      res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-      ErrorMsg error = new ErrorMsg().msg("Invalid empty albums post request");
-      String albumString = this.gson.toJson(error);
-      res.getWriter().write(albumString);
-      return;
-    }
+//    if (!isPostUrlValid(req) || image.getSize() == 0 || profile.getSize() == 0) {
+//      res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+//      ErrorMsg error = new ErrorMsg().msg("Invalid empty albums post request");
+//      String albumString = this.gson.toJson(error);
+//      res.getWriter().write(albumString);
+//      return;
+//    }
     res.setStatus(HttpServletResponse.SC_OK);
     int imageSize = image.getInputStream().readAllBytes().length;
     String imageResult = gson.toJson(new ImageMetaData().albumID("albumId").imageSize(String.valueOf(imageSize)));
