@@ -18,7 +18,8 @@ public class MultipleThreadsClient {
   // Use a thread safe Integer to count and calculate how many requests failed
   private AtomicInteger failedRequests = new AtomicInteger();
 
-  private static final String SERVER_URL = "http://ec2-3-87-217-142.compute-1.amazonaws.com:8080/albumsServlet_war/";
+  private static final String SERVER_URL =
+      "http://http://ec2-54-198-84-36.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
 
   // Replace the following url for go server
 //  private static final String SERVER_URL = "http://ec2-3-87-217-142.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
@@ -32,7 +33,8 @@ public class MultipleThreadsClient {
     client.AlbumClient(30, 10, 2, SERVER_URL);
   }
 
-  public void AlbumClient(int numThreadGroups, int threadGroupSize, int delay, String serverURL) throws InterruptedException, ApiException {
+  public void AlbumClient(int numThreadGroups, int threadGroupSize, int delay, String serverURL)
+      throws InterruptedException, ApiException {
     // Starting the 10 threads each calling 100 times API on startup
     this.StartMultipleThreads(1, START_THREAD, delay, serverURL, START_LOOP_TIMES);
     long startTime = System.currentTimeMillis();
@@ -45,9 +47,13 @@ public class MultipleThreadsClient {
     long successRequests = totalRequests - failedRequests.get();
     double throughput = (double)successRequests / wallTimeInSeconds;
     System.out.println("The average throughput per second is " + throughput);
+    System.out.println("Finish total " + successRequests + " success requests and " +
+        failedRequests.get() + " failed requests");
+
   }
 
-  private void StartMultipleThreads(int numThreadGroups, int threadGroupSize, int delay, String serverURL, int callAPIKTime)
+  private void StartMultipleThreads(int numThreadGroups, int threadGroupSize, int delay,
+      String serverURL, int callAPIKTime)
       throws InterruptedException, ApiException {
     int totalThreadCount = numThreadGroups * threadGroupSize;
     ExecutorService executorService = Executors.newFixedThreadPool(totalThreadCount);
@@ -98,7 +104,8 @@ public class MultipleThreadsClient {
 
         // "Waiting for delay seconds before starting the next Thread Group, but not delay for the last thread group
         if (group < numThreadGroups) {
-          System.out.println("Waiting for " + delay + " seconds before starting the next Thread Group.");
+          System.out.println("Waiting for " + delay +
+              " seconds before starting the next Thread Group.");
           // Convert the delay time from seconds to mili seconds
           Thread.sleep(delay * 1000);
         }
