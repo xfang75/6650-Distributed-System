@@ -1,4 +1,4 @@
-package client1;
+package client2;
 
 import io.swagger.client.ApiException;
 import java.util.concurrent.CountDownLatch;
