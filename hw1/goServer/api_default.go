@@ -37,11 +37,6 @@ func GetAlbumByKey(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write(responseJSON)
 
-		//_, writeErr := w.Write(responseJSON)
-		//if writeErr != nil {
-		//	http.Error(w, "HTTP 500 serverError", http.StatusInternalServerError)
-		//	return
-		//}
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -55,7 +50,7 @@ func NewAlbum(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	parseError := r.ParseMultipartForm(10 << 20) // parse input up to 10 MB of data
 	if parseError != nil {
-		http.Error(w, "Can not parse post input multipart form", http.StatusBadRequest)
+		http.Error(w, "Can not parse post request multipart form", http.StatusBadRequest)
 		return
 	}
 	_, handler, err := r.FormFile("image")
@@ -66,9 +61,9 @@ func NewAlbum(w http.ResponseWriter, r *http.Request) {
 	// Convert the int64 to String
 	sizeAsString := strconv.FormatInt(handler.Size, 10)
 	response := postResponse{AlbumId: handler.Filename, ImageSize: sizeAsString}
-	responseJSON, _ := json.Marshal(response)
+	responseInJSON, _ := json.Marshal(response)
 	w.WriteHeader(http.StatusOK)
-	_, writeErr := w.Write(responseJSON)
+	_, writeErr := w.Write(responseInJSON)
 	if writeErr != nil {
 		http.Error(w, "Error write the response", http.StatusInternalServerError)
 		return
