@@ -18,23 +18,6 @@ public class SingleThreadClient {
     System.out.println(client.getAlbum(serverURL));
     System.out.println(client.postAlbum(serverURL + "albums/"));
 
-//    try {
-//      AlbumInfo result = apiInstance.getAlbumByKey(albumID);
-//      System.out.println(result);
-//    } catch (ApiException e) {
-//      System.err.println("Exception when calling DefaultApi#getAlbumByKey");
-//      e.printStackTrace();
-//    }
-//
-//    try {
-//      apiInstance.getApiClient().setBasePath(serverURL + "albums/");
-//      ImageMetaData postResult = apiInstance.newAlbum(image, profile);
-//      System.out.println(postResult);
-//    } catch (ApiException e) {
-//      System.err.println("Exception when calling DefaultApi#newAlbum");
-//      System.err.println(e.getCode());
-//      e.printStackTrace();
-//    }
   }
 
   public AlbumInfo getAlbum(String url) throws ApiException {
