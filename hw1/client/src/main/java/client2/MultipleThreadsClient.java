@@ -2,6 +2,7 @@ package client2;
 
 import io.swagger.client.ApiException;
 import io.swagger.client.ApiResponse;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -10,7 +11,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import org.jfree.chart.ChartUtils;
+import org.jfree.chart.JFreeChart;
+import org.jfree.data.xy.DefaultXYDataset;
+
 
 public class MultipleThreadsClient {
   private static final int MAX_RETRIES = 5;
@@ -22,12 +30,15 @@ public class MultipleThreadsClient {
   private static final int OFFICIAL_LOOP_TIMES = 1000;
 
   // Use a thread safe Integer to count and calculate how many requests failed
+  private AtomicInteger successfulRequests = new AtomicInteger(0);
+
   private AtomicInteger failedRequests = new AtomicInteger();
 
   static CopyOnWriteArrayList<Long> getList = new CopyOnWriteArrayList<>();
   static CopyOnWriteArrayList<Long> postList = new CopyOnWriteArrayList<>();
+  static ArrayList<Integer> throughputList = new ArrayList<>();
 
-  private static final String SERVER_URL = "http://ec2-3-87-217-142.compute-1.amazonaws.com:8080/albumsServlet_war/";
+  private static final String SERVER_URL = "http://ec2-52-90-224-205.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
 
   // Replace the following url for go server
 //  private static final String SERVER_URL = "http://ec2-3-87-217-142.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
@@ -36,7 +47,7 @@ public class MultipleThreadsClient {
 
   public static void main(String[] args) throws InterruptedException, ApiException {
     MultipleThreadsClient client = new MultipleThreadsClient();
-    client.AlbumClient(10, 10, 2, SERVER_URL);
+    client.AlbumClient(30, 10, 2, SERVER_URL);
     //    client.AlbumClient(20, 10, 2, SERVER_URL);
     //    client.AlbumClient(30, 10, 2, SERVER_URL);
     ArrayList<Long> getResponseTimeArrayList = new ArrayList<>(getList);
@@ -45,6 +56,22 @@ public class MultipleThreadsClient {
     client.calculateResponseTime(getResponseTimeArrayList);
     System.out.println("=== Below are data for post responses: ");
     client.calculateResponseTime(postResponseTimeArrayList);
+    ThroughputChart.createDataset(throughputList);
+    JFreeChart chart = ThroughputChart.createChart(createDataset(throughputList));
+    // Set chart dimensions (width x height) in pixels
+    int chartWidth = 800;
+    int chartHeight = 600;
+
+    // Create a file to save the chart (you can change the file path)
+    File chartFile = new File("throughput_chart.png");
+
+    try {
+      // Save the chart as a PNG image
+      ChartUtils.saveChartAsPNG(chartFile, chart, chartWidth, chartHeight);
+      System.out.println("Chart saved as " + chartFile.getAbsolutePath());
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 
   private void calculateResponseTime(ArrayList<Long> responseTimeArrayList) {
@@ -85,6 +112,7 @@ public class MultipleThreadsClient {
     System.out.println("The average throughput per second is " + throughput);
     System.out.println("Finish total " + successRequests + " success requests with " +
         failedRequests.get() + " failed requests");
+
   }
 
   private void StartMultipleThreads(int numThreadGroups, int threadGroupSize, int delay, String serverURL, int callAPIKTime)
@@ -92,12 +120,20 @@ public class MultipleThreadsClient {
     int totalThreadCount = numThreadGroups * threadGroupSize;
     ExecutorService executorService = Executors.newFixedThreadPool(totalThreadCount);
 
+    ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+    executor.scheduleAtFixedRate(() -> {
+      int requestsCompletedThisSecond = successfulRequests.getAndSet(0);
+      throughputList.add(requestsCompletedThisSecond);
+      //System.out.println("Throughput: " + requestsCompletedThisSecond + " requests per second");
+    }, 1, 1, TimeUnit.SECONDS);
+
     try {
       FileWriter fileWriter = new FileWriter("result.csv");
       CSVWritter csvWritter = new CSVWritter(fileWriter);
       for (int group = 0; group < numThreadGroups; group++) {
         System.out.println("Starting Thread Group " + group);
         CountDownLatch latch = new CountDownLatch(threadGroupSize);
+
         for (int i = 0; i < threadGroupSize; i++) {
           executorService.execute(() -> {
             try {
@@ -163,6 +199,7 @@ public class MultipleThreadsClient {
       failedRequests.incrementAndGet();
       System.out.println("Request failed after " + MAX_RETRIES + " retries.");
     } else {
+      successfulRequests.incrementAndGet();
       long endTime = System.currentTimeMillis();
       long latency = endTime - startTime;
       csvWritter.writeToCSV(String.valueOf(startTime), apiType, latency, responseCode);
@@ -172,5 +209,20 @@ public class MultipleThreadsClient {
         postList.add(latency);
       }
     }
+  }
+
+  private static DefaultXYDataset createDataset(ArrayList<Integer> throughputList) {
+    DefaultXYDataset dataset = new DefaultXYDataset();
+
+    int totalTime = throughputList.size(); // Total time in seconds
+    double[][] data = new double[2][totalTime];
+    data[0] = new double[totalTime]; // X-axis (seconds)
+    data[1] = new double[totalTime]; // Y-axis (throughput/second)
+    for (int i = 0; i < totalTime; i++) {
+      data[0][i] = i; // Time in seconds
+      data[1][i] = throughputList.get(i); // Throughput for each second
+    }
+    dataset.addSeries("Throughput", data);
+    return dataset;
   }
 }

@@ -24,8 +24,6 @@ public class MultipleThreadsClient {
   // Replace the following url for go server
 //  private static final String SERVER_URL = "http://ec2-3-87-217-142.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
 
-
-
   public static void main(String[] args) throws InterruptedException, ApiException {
     MultipleThreadsClient client = new MultipleThreadsClient();
     client.AlbumClient(10, 10, 2, SERVER_URL);
