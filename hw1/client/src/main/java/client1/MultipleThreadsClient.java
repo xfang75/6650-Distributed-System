@@ -66,10 +66,10 @@ public class MultipleThreadsClient {
               for (int j = 0; j < callAPIKTime; j++) {
                 boolean requestSuccess = false;
                 int retryCount = 0;
+                SingleThreadClient client = new SingleThreadClient();
 
                 while (!requestSuccess && retryCount < MAX_RETRIES) {
                   try {
-                    SingleThreadClient client = new SingleThreadClient();
                     client.getAlbum(serverURL);
                     client.postAlbum(serverURL + "albums/");
                     requestSuccess = true;

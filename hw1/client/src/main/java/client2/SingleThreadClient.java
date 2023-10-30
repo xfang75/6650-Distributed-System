@@ -18,12 +18,11 @@ public class SingleThreadClient {
 //    String serverURL = "http://ec2-3-90-1-139.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
     SingleThreadClient client = new SingleThreadClient();
 
-    System.out.println(client.getAlbumWithHttpInfo(serverURL));
-    System.out.println(client.postAlbumWithHttpInfo(serverURL + "albums/"));
+//    System.out.println(client.getAlbumWithHttpInfo(serverURL));
+//    System.out.println(client.postAlbumWithHttpInfo(serverURL + "albums/"));
   }
 
-  public ApiResponse<AlbumInfo> getAlbumWithHttpInfo(String url) throws ApiException {
-    DefaultApi apiInstance = new DefaultApi();
+  public ApiResponse<AlbumInfo> getAlbumWithHttpInfo(DefaultApi apiInstance, String url) throws ApiException {
     String albumID = "albumID_example"; // String | path  parameter is album key to retrieve
     long startTime = System.currentTimeMillis();
     apiInstance.getApiClient().setBasePath(url);
@@ -31,8 +30,7 @@ public class SingleThreadClient {
     return apiInstance.getAlbumByKeyWithHttpInfo(albumID);
   }
 
-  public ApiResponse<ImageMetaData> postAlbumWithHttpInfo(String url) throws ApiException {
-    DefaultApi apiInstance = new DefaultApi();
+  public ApiResponse<ImageMetaData> postAlbumWithHttpInfo(DefaultApi apiInstance, String url) throws ApiException {
     apiInstance.getApiClient().setBasePath(url);
     File image = new File("nmtb.png");
 

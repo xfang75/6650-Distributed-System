@@ -2,6 +2,7 @@ package client2;
 
 import io.swagger.client.ApiException;
 import io.swagger.client.ApiResponse;
+import io.swagger.client.api.DefaultApi;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -38,18 +39,24 @@ public class MultipleThreadsClient {
   static CopyOnWriteArrayList<Long> postList = new CopyOnWriteArrayList<>();
   static ArrayList<Integer> throughputList = new ArrayList<>();
 
-  private static final String SERVER_URL = "http://ec2-52-90-224-205.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
+//  private static final String SERVER_URL = "http://ec2-52-90-224-205.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
+  private static final String SERVER_URL = "http://localhost:8080/AlbumStore/1.0.0/";
+
 
   // Replace the following url for go server
 //  private static final String SERVER_URL = "http://ec2-3-87-217-142.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
 
-
-
   public static void main(String[] args) throws InterruptedException, ApiException {
     MultipleThreadsClient client = new MultipleThreadsClient();
-    client.AlbumClient(30, 10, 2, SERVER_URL);
-    //    client.AlbumClient(20, 10, 2, SERVER_URL);
-    //    client.AlbumClient(30, 10, 2, SERVER_URL);
+    // We could either get the arguments from command line or use the default values
+    if (args.length == 3) {
+      client.AlbumClient(Integer.valueOf(args[0]), Integer.valueOf(args[2]), Integer.valueOf(args[2]), SERVER_URL);
+    } else {
+      client.AlbumClient(10, 10, 2, SERVER_URL);
+      //    client.AlbumClient(20, 10, 2, SERVER_URL);
+      //    client.AlbumClient(30, 10, 2, SERVER_URL);
+    }
+
     ArrayList<Long> getResponseTimeArrayList = new ArrayList<>(getList);
     ArrayList<Long> postResponseTimeArrayList = new ArrayList<>(postList);
     System.out.println("=== Below are data for get responses: ");
@@ -119,8 +126,10 @@ public class MultipleThreadsClient {
       throws InterruptedException, ApiException {
     int totalThreadCount = numThreadGroups * threadGroupSize;
     ExecutorService executorService = Executors.newFixedThreadPool(totalThreadCount);
+    CountDownLatch latch = new CountDownLatch(threadGroupSize);
 
     ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+    DefaultApi apiInstance = new DefaultApi();
     executor.scheduleAtFixedRate(() -> {
       int requestsCompletedThisSecond = successfulRequests.getAndSet(0);
       throughputList.add(requestsCompletedThisSecond);
@@ -130,16 +139,15 @@ public class MultipleThreadsClient {
     try {
       FileWriter fileWriter = new FileWriter("result.csv");
       CSVWritter csvWritter = new CSVWritter(fileWriter);
+
       for (int group = 0; group < numThreadGroups; group++) {
         System.out.println("Starting Thread Group " + group);
-        CountDownLatch latch = new CountDownLatch(threadGroupSize);
-
         for (int i = 0; i < threadGroupSize; i++) {
           executorService.execute(() -> {
             try {
               for (int j = 0; j < callAPIKTime; j++) {
-                this.callAPIRequest(serverURL, csvWritter, "GET");
-                this.callAPIRequest(serverURL, csvWritter, "POST");
+                this.callAPIRequest(apiInstance, serverURL, csvWritter, "GET");
+                this.callAPIRequest(apiInstance, serverURL, csvWritter, "POST");
               }
             } catch (Exception e) {
               e.printStackTrace();
@@ -153,7 +161,6 @@ public class MultipleThreadsClient {
 
         // "Waiting for delay seconds before starting the next Thread Group, but not delay for the last thread group
         if (group < numThreadGroups) {
-//          System.out.println("Waiting for " + delay + " seconds before starting the next Thread Group.");
           // Convert the delay time from seconds to mili seconds
           Thread.sleep(delay * 1000);
         }
@@ -165,10 +172,11 @@ public class MultipleThreadsClient {
       System.out.println("Caught IO exception while writing to csv");
     } finally {
       executorService.shutdown();
+      executor.shutdown();
     }
   }
 
-  private void callAPIRequest(String serverURL, CSVWritter csvWritter, String apiType)
+  private void callAPIRequest(DefaultApi apiInstance, String serverURL, CSVWritter csvWritter, String apiType)
       throws InterruptedException, IOException {
     SingleThreadClient client = new SingleThreadClient();
     boolean requestSuccess = false;
@@ -180,10 +188,10 @@ public class MultipleThreadsClient {
     while (!requestSuccess && retryCount < MAX_RETRIES) {
       try {
         if (apiType.equals("GET")) {
-          response = client.getAlbumWithHttpInfo(serverURL);
+          response = client.getAlbumWithHttpInfo(apiInstance, serverURL);
           responseCode = response.getStatusCode();
         } else {
-          response = client.postAlbumWithHttpInfo(serverURL + "albums/");
+          response = client.postAlbumWithHttpInfo(apiInstance, serverURL + "albums/");
           responseCode = response.getStatusCode();
         }
         requestSuccess = true;
