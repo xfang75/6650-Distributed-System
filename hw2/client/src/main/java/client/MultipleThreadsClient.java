@@ -33,7 +33,7 @@ public class MultipleThreadsClient {
   // Use a thread safe Integer to count and calculate how many requests failed
   private AtomicInteger successfulRequests = new AtomicInteger(0);
 
-  private AtomicInteger failedRequests = new AtomicInteger();
+  private AtomicInteger failedRequests = new AtomicInteger(0);
 
   static CopyOnWriteArrayList<Long> getList = new CopyOnWriteArrayList<>();
   static CopyOnWriteArrayList<Long> postList = new CopyOnWriteArrayList<>();
@@ -137,17 +137,14 @@ public class MultipleThreadsClient {
     }, 1, 1, TimeUnit.SECONDS);
 
     try {
-      FileWriter fileWriter = new FileWriter("result.csv");
-      CSVWritter csvWritter = new CSVWritter(fileWriter);
-
       for (int group = 0; group < numThreadGroups; group++) {
         System.out.println("Starting Thread Group " + group);
         for (int i = 0; i < threadGroupSize; i++) {
           executorService.execute(() -> {
             try {
               for (int j = 0; j < callAPIKTime; j++) {
-                this.callAPIRequest(apiInstance, serverURL, csvWritter, "GET");
-                this.callAPIRequest(apiInstance, serverURL, csvWritter, "POST");
+                this.callAPIRequest(apiInstance, serverURL, "GET");
+                this.callAPIRequest(apiInstance, serverURL, "POST");
               }
             } catch (Exception e) {
               e.printStackTrace();
@@ -167,17 +164,14 @@ public class MultipleThreadsClient {
       }
     } catch (InterruptedException e) {
       e.printStackTrace();
-    } catch (IOException e) {
-      e.printStackTrace();
-      System.out.println("Caught IO exception while writing to csv");
     } finally {
       executorService.shutdown();
       executor.shutdown();
     }
   }
 
-  private void callAPIRequest(DefaultApi apiInstance, String serverURL, CSVWritter csvWritter, String apiType)
-      throws InterruptedException, IOException {
+  private void callAPIRequest(DefaultApi apiInstance, String serverURL, String apiType)
+      throws InterruptedException {
     SingleThreadClient client = new SingleThreadClient();
     boolean requestSuccess = false;
     int retryCount = 0;
@@ -210,7 +204,6 @@ public class MultipleThreadsClient {
       successfulRequests.incrementAndGet();
       long endTime = System.currentTimeMillis();
       long latency = endTime - startTime;
-      csvWritter.writeToCSV(String.valueOf(startTime), apiType, latency, responseCode);
       if (apiType.equals("GET")) {
         getList.add(latency);
       } else {
