@@ -21,8 +21,9 @@ import model.ImageMetaData;
     maxRequestSize = 209715200)    // 200 MB
 public class AlbumsServlet extends HttpServlet {
   private Gson gson = new Gson();
-  private HikariDataSource connectionPool;
+  private HikariDataSource connectionPool = SQLConnector.createDataSource();
 
+  @Override
   public void init() {
     connectionPool =  SQLConnector.createDataSource();
   }
