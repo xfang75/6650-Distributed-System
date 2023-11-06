@@ -39,8 +39,7 @@ public class MultipleThreadsClient {
   static CopyOnWriteArrayList<Long> postList = new CopyOnWriteArrayList<>();
   static ArrayList<Integer> throughputList = new ArrayList<>();
 
-  private static final String SERVER_URL = "http://ec2-34-238-172-71.compute-1.amazonaws.com:8080/albumsServlet_war/";
-  //private static final String SERVER_URL = "http://localhost:8080/AlbumStore/1.0.0/";
+  private static final String SERVER_URL = "http://hw2-fx-lb-aff54ac0d5d96c38.elb.us-east-1.amazonaws.com:8080/albumsServlet_war/";
 
 
   // Replace the following url for go server
