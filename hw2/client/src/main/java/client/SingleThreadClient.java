@@ -13,13 +13,15 @@ import java.io.IOException;
 public class SingleThreadClient {
   public static void main(String[] args) throws InterruptedException, ApiException {
     // The url for java server
-    String serverURL = "http://ec2-54-205-15-109.compute-1.amazonaws.com:8080/albumsServlet_war/";
+    String serverURL = "http://ec2-34-238-172-71.compute-1.amazonaws.com:8080/albumsServlet_war/";
     // The url for go server
 //    String serverURL = "http://ec2-3-90-1-139.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
     SingleThreadClient client = new SingleThreadClient();
 
-//    System.out.println(client.getAlbumWithHttpInfo(serverURL));
-//    System.out.println(client.postAlbumWithHttpInfo(serverURL + "albums/"));
+    DefaultApi apiInstance = new DefaultApi();
+    System.out.println(System.getProperty("user.dir"));
+    System.out.println(client.postAlbumWithHttpInfo(apiInstance,serverURL + "albums/"));
+    System.out.println(client.getAlbumWithHttpInfo(apiInstance, serverURL));
   }
 
   public ApiResponse<AlbumInfo> getAlbumWithHttpInfo(DefaultApi apiInstance, String url) throws ApiException {

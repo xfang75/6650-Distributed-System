@@ -28,7 +28,7 @@ public class MultipleThreadsClient {
 
   private static final int START_LOOP_TIMES = 100;
 
-  private static final int OFFICIAL_LOOP_TIMES = 1000;
+  private static final int OFFICIAL_LOOP_TIMES = 2;
 
   // Use a thread safe Integer to count and calculate how many requests failed
   private AtomicInteger successfulRequests = new AtomicInteger(0);
@@ -39,8 +39,8 @@ public class MultipleThreadsClient {
   static CopyOnWriteArrayList<Long> postList = new CopyOnWriteArrayList<>();
   static ArrayList<Integer> throughputList = new ArrayList<>();
 
-//  private static final String SERVER_URL = "http://ec2-52-90-224-205.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
-  private static final String SERVER_URL = "http://localhost:8080/AlbumStore/1.0.0/";
+  private static final String SERVER_URL = "http://ec2-34-238-172-71.compute-1.amazonaws.com:8080/albumsServlet_war/";
+  //private static final String SERVER_URL = "http://localhost:8080/AlbumStore/1.0.0/";
 
 
   // Replace the following url for go server
