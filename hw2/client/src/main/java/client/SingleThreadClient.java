@@ -11,25 +11,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 public class SingleThreadClient {
-  public static void main(String[] args) throws InterruptedException, ApiException {
-    // The url for java server
-    String serverURL = "    String serverURL = \"http://34.238.172.71:8080/albumsServlet_war/";
-    // The url for go server
-//    String serverURL = "http://ec2-3-90-1-139.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
-    SingleThreadClient client = new SingleThreadClient();
-
-    DefaultApi apiInstance = new DefaultApi();
-    System.out.println(System.getProperty("user.dir"));
-    System.out.println(client.postAlbumWithHttpInfo(apiInstance,serverURL + "albums/"));
-    System.out.println(client.getAlbumWithHttpInfo(apiInstance, serverURL));
-  }
 
   public ApiResponse<AlbumInfo> getAlbumWithHttpInfo(DefaultApi apiInstance, String url) throws ApiException {
-    String albumID = "albumID_example"; // String | path  parameter is album key to retrieve
-    long startTime = System.currentTimeMillis();
+    Random rand = new Random();
+    int id = rand.nextInt(10);
     apiInstance.getApiClient().setBasePath(url);
-    long endTime = System.currentTimeMillis();
-    return apiInstance.getAlbumByKeyWithHttpInfo(albumID);
+    return apiInstance.getAlbumByKeyWithHttpInfo(String.valueOf(id));
   }
 
   public ApiResponse<ImageMetaData> postAlbumWithHttpInfo(DefaultApi apiInstance, String url) throws ApiException {
