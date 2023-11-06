@@ -13,7 +13,7 @@ import java.io.IOException;
 public class SingleThreadClient {
   public static void main(String[] args) throws InterruptedException, ApiException {
     // The url for java server
-    String serverURL = "http://ec2-34-238-172-71.compute-1.amazonaws.com:8080/albumsServlet_war/";
+    String serverURL = "    String serverURL = \"http://34.238.172.71:8080/albumsServlet_war/";
     // The url for go server
 //    String serverURL = "http://ec2-3-90-1-139.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
     SingleThreadClient client = new SingleThreadClient();

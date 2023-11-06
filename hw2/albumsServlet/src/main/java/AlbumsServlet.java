@@ -59,7 +59,7 @@ public class AlbumsServlet extends HttpServlet {
         String selectQuery =
             "SELECT AlbumId, Artist, Title, Year " +
                 "FROM Albums " +
-                "WHERE albumId=?;";
+                "WHERE AlbumId=?;";
         PreparedStatement preparedStatement = connection.prepareStatement(selectQuery);
         preparedStatement.setInt(1, albumId);
 
@@ -107,6 +107,7 @@ public class AlbumsServlet extends HttpServlet {
     res.setContentType("application/json");
     res.setCharacterEncoding("UTF-8");
     Part image = req.getPart("image");
+    int imageSize = image.getInputStream().readAllBytes().length;
     Part profile = req.getPart("profile");
     String profileParameter = req.getParameter("profile");
     if (!isPostUrlValid(req) || image.getSize() == 0 || profile == null || profile.getSize() == 0) {
@@ -118,8 +119,8 @@ public class AlbumsServlet extends HttpServlet {
     }
     try (Connection connection = this.connectionPool.getConnection()) {
       String insertAlbumsQuery =
-          "INSERT INTO Albums(Artist,Title,Year) " +
-              "VALUES(?,?,?);";
+          "INSERT INTO Albums(Artist,Title,Year,ImageSize) " +
+              "VALUES(?,?,?,?);";
       PreparedStatement preparedStatement = connection.prepareStatement(insertAlbumsQuery);
       Pattern pattern = Pattern.compile("artist: (.+?)\\n +title: (.+?)\\n +year: (\\d+)");
       Matcher matcher = pattern.matcher(profileParameter);
@@ -149,6 +150,7 @@ public class AlbumsServlet extends HttpServlet {
       preparedStatement.setString(1, albumsProfile.getArtist());
       preparedStatement.setString(2, albumsProfile.getTitle());
       preparedStatement.setInt(3, Integer.valueOf(albumsProfile.getYear()));
+      preparedStatement.setInt(4, imageSize);
       res.setStatus(HttpServletResponse.SC_OK);
       preparedStatement.executeUpdate();
       ResultSet resultKey = preparedStatement.getGeneratedKeys();
@@ -158,7 +160,7 @@ public class AlbumsServlet extends HttpServlet {
       } else {
         throw new SQLException("Unable to retrieve auto-generated key.");
       }
-      int imageSize = image.getInputStream().readAllBytes().length;
+
       String imageResult = gson.toJson(new ImageMetaData().albumID(String.valueOf(imageId)).imageSize(String.valueOf(imageSize)));
       res.getWriter().write(imageResult);
     } catch (SQLException e) {
