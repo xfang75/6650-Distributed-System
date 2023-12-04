@@ -1,11 +1,18 @@
 package client;
 
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 import io.swagger.client.ApiException;
 import io.swagger.client.ApiResponse;
 import io.swagger.client.api.DefaultApi;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -28,7 +35,10 @@ public class MultipleThreadsClient {
 
   private static final int START_LOOP_TIMES = 100;
 
-  private static final int OFFICIAL_LOOP_TIMES = 2;
+  private static final int OFFICIAL_LOOP_TIMES = 100;
+
+  private static final String username = "fangxun";
+  private static final String password = "yangfangxunyangxiangxiang";
 
   // Use a thread safe Integer to count and calculate how many requests failed
   private AtomicInteger successfulRequests = new AtomicInteger(0);
@@ -41,11 +51,13 @@ public class MultipleThreadsClient {
 
   private static final String SERVER_URL = "http://hw2-fx-lb-aff54ac0d5d96c38.elb.us-east-1.amazonaws.com:8080/albumsServlet_war/";
 
+  private static final String MQ_SERVER_URL = "amqps://b-8ba40c3e-1f8b-4dca-854a-14cf5df952ca.mq.us-east-1.amazonaws.com:5671";
 
   // Replace the following url for go server
 //  private static final String SERVER_URL = "http://ec2-3-87-217-142.compute-1.amazonaws.com:8080/AlbumStore/1.0.0/";
 
-  public static void main(String[] args) throws InterruptedException, ApiException {
+  public static void main(String[] args)
+      throws InterruptedException, ApiException {
     MultipleThreadsClient client = new MultipleThreadsClient();
     // We could either get the arguments from command line or use the default values
     if (args.length == 4) {
@@ -56,28 +68,9 @@ public class MultipleThreadsClient {
       //    client.AlbumClient(30, 10, 2, SERVER_URL);
     }
 
-    ArrayList<Long> getResponseTimeArrayList = new ArrayList<>(getList);
     ArrayList<Long> postResponseTimeArrayList = new ArrayList<>(postList);
-    System.out.println("=== Below are data for get responses: ");
-    client.calculateResponseTime(getResponseTimeArrayList);
     System.out.println("=== Below are data for post responses: ");
     client.calculateResponseTime(postResponseTimeArrayList);
-    ThroughputChart.createDataset(throughputList);
-    JFreeChart chart = ThroughputChart.createChart(createDataset(throughputList));
-    // Set chart dimensions (width x height) in pixels
-    int chartWidth = 800;
-    int chartHeight = 600;
-
-    // Create a file to save the chart (you can change the file path)
-    File chartFile = new File("throughput_chart.png");
-
-    try {
-      // Save the chart as a PNG image
-      ChartUtils.saveChartAsPNG(chartFile, chart, chartWidth, chartHeight);
-      System.out.println("Chart saved as " + chartFile.getAbsolutePath());
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
   }
 
   private void calculateResponseTime(ArrayList<Long> responseTimeArrayList) {
@@ -103,9 +96,11 @@ public class MultipleThreadsClient {
     System.out.println("The max of the response time is: " + responseTimeArrayList.get(responseTimeArrayList.size() - 1));
   }
 
-  public void AlbumClient(int numThreadGroups, int threadGroupSize, int delay, String serverURL) throws InterruptedException, ApiException {
+  public void AlbumClient(int numThreadGroups, int threadGroupSize, int delay, String serverURL)
+      throws InterruptedException, ApiException {
     System.out.println("Sending rereqest to  " + serverURL);
     // Starting the 10 threads each calling 100 times API on startup
+
     this.StartMultipleThreads(1, START_THREAD, delay, serverURL, START_LOOP_TIMES);
     long startTime = System.currentTimeMillis();
     // Starting the official loop threads each calling 1000 times API on startup
@@ -135,7 +130,31 @@ public class MultipleThreadsClient {
       throughputList.add(requestsCompletedThisSecond);
       //System.out.println("Throughput: " + requestsCompletedThisSecond + " requests per second");
     }, 1, 1, TimeUnit.SECONDS);
+    ConnectionFactory factory = new ConnectionFactory();
+    Channel channel = null;
+    String queueName = "reviewQueue";
+    String message = "Hello, RabbitMQ!";
+    String jsonData = "{\"key\": \"value\"}";
 
+    try {
+      factory.setUri(MQ_SERVER_URL);
+      factory.setUsername(username);
+      factory.setPassword(password);
+      Connection connection = factory.newConnection();
+      channel = connection.createChannel();
+      channel.queueDeclare(queueName, false, false, false, null);
+
+      // Example: Publish a message to the queue
+
+      channel.basicPublish("", queueName, null, message.getBytes());
+      System.out.println("Sent: '" + message + "'");
+
+    } catch (Exception e) {
+      e.printStackTrace();
+      System.out.println("Error setting up the RabbitMQ"  + e.getMessage());
+    }
+
+    channel.basicPublish("", queueName, null, jsonData.getBytes("UTF-8"));
     try {
       for (int group = 0; group < numThreadGroups; group++) {
         System.out.println("Starting Thread Group " + group);
