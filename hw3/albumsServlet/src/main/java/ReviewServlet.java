@@ -36,7 +36,7 @@ public class ReviewServlet extends HttpServlet {
   private static final String MQ_SERVER_URL = "amqps://b-8ba40c3e-1f8b-4dca-854a-14cf5df952ca.mq.us-east-1.amazonaws.com:5671";
   private static final String username = "fangxun";
   private static final String password = "yangfangxunyangxiangxiang";
-  private static final String queueName = "reviewQueue";
+  private static final String QUEUE_NAME = "reviewQueue";
   private final static int CHANNEL_SIZE = 100;
   private final static int EXECUTOR_SIZE = 100;
 
@@ -61,7 +61,7 @@ public class ReviewServlet extends HttpServlet {
       this.rbmqConnection = factory.newConnection();
       for (int i = 0; i < CHANNEL_SIZE; i++) {
         Channel channel = rbmqConnection.createChannel();
-        channel.queueDeclare(queueName, false, false, false, null);
+        channel.queueDeclare(QUEUE_NAME, false, false, false, null);
         channelPool.add(channel);
       }
     } catch (Exception e) {
@@ -161,8 +161,8 @@ public class ReviewServlet extends HttpServlet {
     try {
       channel = this.channelPool.removeFirst();
       if (channel != null) {
-        channel.queueDeclare(queueName, false, false, false, null);
-        channel.basicPublish("", queueName, null, msg.getBytes("UTF-8"));
+        channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+        channel.basicPublish("", QUEUE_NAME, null, msg.getBytes("UTF-8"));
         System.out.println(" [x] Sent '" + msg + "'");
       } else {
         System.out.println("No channel available");

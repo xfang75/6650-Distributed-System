@@ -179,15 +179,16 @@ public class MultipleThreadsClient {
           response = client.getAlbumWithHttpInfo(apiInstance, serverURL);
           responseCode = response.getStatusCode();
         } else {
-          response = client.postAlbumWithHttpInfo(apiInstance, serverURL + "albums/");
+//          response = client.postAlbumWithHttpInfo(apiInstance, serverURL + "albums/");
           client.postAlbumReviewWithHttpInfo(likeApi, serverURL + "review/", "like");
           client.postAlbumReviewWithHttpInfo(likeApi, serverURL + "review/", "like");
           client.postAlbumReviewWithHttpInfo(likeApi, serverURL + "review/", "dislike");
-          responseCode = response.getStatusCode();
+//          responseCode = response.getStatusCode();
         }
         requestSuccess = true;
       } catch (Exception e) {
         retryCount++;
+        System.out.println(e.getMessage());
         // Wait for 1 second before retrying
         Thread.sleep(1 * 1000);
       }
