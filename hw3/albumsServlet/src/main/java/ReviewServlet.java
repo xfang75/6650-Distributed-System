@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.servlet.*;
@@ -72,6 +73,17 @@ public class ReviewServlet extends HttpServlet {
 
   public void close() {
     connectionPool.close();
+    closeChannelPool(channelPool);
+  }
+
+  public void closeChannelPool(ConcurrentLinkedDeque<Channel> channelPool) {
+    for (Channel channel : channelPool) {
+      try {
+        channel.close();
+      } catch (IOException | TimeoutException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
 
@@ -103,21 +115,21 @@ public class ReviewServlet extends HttpServlet {
     String albumId = urlParts[2];
     HashMap<String, String> messageData = new HashMap<>();
     messageData.put("albumId", albumId);
-    messageData.put("reviewType", reviewType);
+    messageData.put("LikeOrDislike", reviewType);
     String messageToSend = new Gson().toJson(messageData);
 
-    String message = null;
+    String messageToClient = null;
     boolean like = true;
     if (reviewType.equals("like")) {
-      message = "AlbumID " + albumId + " +1 " + "like";
+      messageToClient = "AlbumID " + albumId + " +1 " + "like";
     }
 
     if (reviewType.equals("dislike")) {
       like = false;
-      message = "AlbumID " + albumId + " +1 " + "dislike";
+      messageToClient = "AlbumID " + albumId + " +1 " + "dislike";
     }
-    if (message != null && !message.isEmpty()) {
-      String finalMessage = message;
+    if (messageToClient != null && !messageToClient.isEmpty()) {
+      String finalMessage = messageToClient;
       executorService.submit(() -> {
         try {
           sendToQueue(messageToSend);
@@ -127,34 +139,34 @@ public class ReviewServlet extends HttpServlet {
       });
     }
 
-    try (java.sql.Connection connection = this.connectionPool.getConnection()) {
-      String updateLikes =
-          "UPDATE AlbumsWithLikes "
-              + "SET Likes = Likes + 1"
-              + "WHERE AlbumId = ?;";
-      String updateDislikes =
-          "UPDATE AlbumsWithLikes "
-              + "SET Dislikes = Dislikes + 1"
-              + "WHERE AlbumId = ?;";
-
-      PreparedStatement preparedStatement;
-      if (like) {
-        preparedStatement = connection.prepareStatement(updateLikes);
-      } else {
-        preparedStatement = connection.prepareStatement(updateDislikes);
-      }
-      preparedStatement.setString(1, albumId);
-      res.setStatus(HttpServletResponse.SC_OK);
-      preparedStatement.executeUpdate();
-      ResultSet resultKey = preparedStatement.getGeneratedKeys();
-      int imageId = -1;
-      if(!resultKey.next()) {
-        throw new SQLException("Unable to retrieve auto-generated key.");
-      }
-      res.getWriter().write(message);
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
-    }
+//    try (java.sql.Connection connection = this.connectionPool.getConnection()) {
+//      String updateLikes =
+//          "UPDATE AlbumsWithLikes "
+//              + "SET Likes = Likes + 1"
+//              + "WHERE AlbumId = ?;";
+//      String updateDislikes =
+//          "UPDATE AlbumsWithLikes "
+//              + "SET Dislikes = Dislikes + 1"
+//              + "WHERE AlbumId = ?;";
+//
+//      PreparedStatement preparedStatement;
+//      if (like) {
+//        preparedStatement = connection.prepareStatement(updateLikes);
+//      } else {
+//        preparedStatement = connection.prepareStatement(updateDislikes);
+//      }
+//      preparedStatement.setString(1, albumId);
+//      res.setStatus(HttpServletResponse.SC_OK);
+//      preparedStatement.executeUpdate();
+//      ResultSet resultKey = preparedStatement.getGeneratedKeys();
+//      int imageId = -1;
+//      if(!resultKey.next()) {
+//        throw new SQLException("Unable to retrieve auto-generated key.");
+//      }
+//      res.getWriter().write(messageToClient);
+//    } catch (SQLException e) {
+//      throw new RuntimeException(e);
+//    }
   }
 
   private void sendToQueue(String msg) throws Exception {
@@ -163,10 +175,9 @@ public class ReviewServlet extends HttpServlet {
       if (channel != null) {
         channel.queueDeclare(QUEUE_NAME, false, false, false, null);
         channel.basicPublish("", QUEUE_NAME, null, msg.getBytes("UTF-8"));
-        System.out.println(" [x] Sent '" + msg + "'");
       } else {
         System.out.println("No channel available");
-        Thread.sleep(1 * 100);
+        Thread.sleep(1 * 1000);
         return;
       }
     } catch (IOException e) {

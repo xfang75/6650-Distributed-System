@@ -47,7 +47,7 @@ public class MultipleThreadsClient {
   static CopyOnWriteArrayList<Long> postList = new CopyOnWriteArrayList<>();
   static ArrayList<Integer> throughputList = new ArrayList<>();
 
-  private static final String SERVER_URL = "http://hw2-fx-lb-aff54ac0d5d96c38.elb.us-east-1.amazonaws.com:8080/albumsServlet_war/";
+  private static final String SERVER_URL = "http://ec2-54-198-36-186.compute-1.amazonaws.com:8080/albumsServlet_war/";
 
   private static final String MQ_SERVER_URL = "amqps://b-8ba40c3e-1f8b-4dca-854a-14cf5df952ca.mq.us-east-1.amazonaws.com:5671";
 
@@ -106,7 +106,7 @@ public class MultipleThreadsClient {
     long endTime = System.currentTimeMillis();
     double wallTimeInSeconds = ((double)endTime - startTime) / 1000;
     System.out.println("The wall time in second is " + wallTimeInSeconds);
-    long totalRequests = numThreadGroups * threadGroupSize * OFFICIAL_LOOP_TIMES * 2;
+    long totalRequests = numThreadGroups * threadGroupSize * OFFICIAL_LOOP_TIMES;
     long successRequests = totalRequests - failedRequests.get();
     double throughput = (double)successRequests / wallTimeInSeconds;
     System.out.println("The average throughput per second is " + throughput);
