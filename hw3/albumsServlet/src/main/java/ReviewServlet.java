@@ -1,9 +1,15 @@
 import com.zaxxer.hikari.HikariDataSource;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
 import java.io.InputStream;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.servlet.*;
@@ -22,76 +28,52 @@ import model.ImageMetaData;
 public class ReviewServlet extends HttpServlet {
   private Gson gson = new Gson();
   private HikariDataSource connectionPool = SQLConnector.createDataSource();
+  private ConnectionFactory factory;
+  private Connection rbmqConnection;
+  private Channel channel;
+  ConcurrentLinkedDeque<Channel> channelPool;
+
+  private static final String MQ_SERVER_URL = "amqps://b-8ba40c3e-1f8b-4dca-854a-14cf5df952ca.mq.us-east-1.amazonaws.com:5671";
+  private static final String username = "fangxun";
+  private static final String password = "yangfangxunyangxiangxiang";
+  private static final String queueName = "reviewQueue";
+  private final static int CHANNEL_SIZE = 100;
+  private final static int EXECUTOR_SIZE = 100;
+
+  private ExecutorService executorService;
 
   @Override
-  public void init() {
+  public void init() throws ServletException {
     connectionPool =  SQLConnector.createDataSource();
+    channelPool = new ConcurrentLinkedDeque<>();
+    executorService = Executors.newFixedThreadPool(EXECUTOR_SIZE);
+    try {
+      factory = new ConnectionFactory();
+      factory.setUri(MQ_SERVER_URL);
+      factory.setUsername(username);
+      factory.setPassword(password);
+    } catch (Exception e) {
+      e.printStackTrace();
+      throw new ServletException("Failed to initialize connection factory" + e.getMessage());
+    }
+
+    try {
+      this.rbmqConnection = factory.newConnection();
+      for (int i = 0; i < CHANNEL_SIZE; i++) {
+        Channel channel = rbmqConnection.createChannel();
+        channel.queueDeclare(queueName, false, false, false, null);
+        channelPool.add(channel);
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      throw new ServletException("Failed to initialize connection or channel" + e.getMessage());
+    }
   }
 
   public void close() {
     connectionPool.close();
   }
 
-  @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
-    res.setContentType("application/json");
-    res.setCharacterEncoding("UTF-8");
-    String urlPath = req.getPathInfo();
-
-    // check we have a non empty URL
-    if (urlPath == null || urlPath.isEmpty()) {
-      res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-      ErrorMsg error = new ErrorMsg().msg("Empty albums get request");
-      String albumString = gson.toJson(error);
-      res.getWriter().write(albumString);
-      return;
-    }
-
-    String[] urlParts = urlPath.split("/");
-    if (!isGetUrlValid(urlParts)) {
-      res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-      res.getWriter().write("error");
-      ErrorMsg error = new ErrorMsg().msg("Invalid albums get request");
-      String albumString = gson.toJson(error);
-      res.getWriter().write(albumString);
-    } else {
-      int albumId = Integer.parseInt(urlParts[1]);
-      try (Connection connection = this.connectionPool.getConnection()) {
-        String selectQuery =
-            "SELECT AlbumId, Artist, Title, Year " +
-                "FROM Albums " +
-                "WHERE AlbumId=?;";
-        PreparedStatement preparedStatement = connection.prepareStatement(selectQuery);
-        preparedStatement.setInt(1, albumId);
-
-        ResultSet resultSet = preparedStatement.executeQuery();
-
-        if (resultSet.next()) {
-          int resultAlbumId = resultSet.getInt("AlbumId");
-          String resultArtist = resultSet.getString("Artist");
-          String resultTitle = resultSet.getString("Title");
-          int resultYear = resultSet.getInt("Year");
-          res.setStatus(HttpServletResponse.SC_OK);
-          AlbumInfo albumInfo = new AlbumInfo().artist(resultArtist).title(resultTitle).year(String.valueOf(resultYear));
-          String albumString = gson.toJson(albumInfo);
-          res.getWriter().write(albumString);
-        } else {
-          res.setStatus(HttpServletResponse.SC_NOT_FOUND);
-          res.getWriter().write("Album ID not found.");
-        }
-      } catch (SQLException e) {
-        throw new RuntimeException(e);
-      }
-    }
-  }
-
-  private boolean isGetUrlValid(String[] urlPath) {
-    // /albums/{albumID}, we only allow get album by key
-    if (urlPath.length == 2 && !urlPath[1].isEmpty()) {
-      return true;
-    }
-    return false;
-  }
 
   private boolean isPostUrlValid(HttpServletRequest req) {
     // We want to check if we get a valid post request url
@@ -107,65 +89,93 @@ public class ReviewServlet extends HttpServlet {
       throws ServletException, IOException {
     res.setContentType("application/json");
     res.setCharacterEncoding("UTF-8");
-    Part image = req.getPart("image");
-    int imageSize = image.getInputStream().readAllBytes().length;
-    Part profile = req.getPart("profile");
-    String profileParameter = req.getParameter("profile");
-    if (!isPostUrlValid(req) || image.getSize() == 0 || profile == null || profile.getSize() == 0) {
+    if (!isPostUrlValid(req)) {
       res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-      ErrorMsg error = new ErrorMsg().msg("Invalid empty albums post request");
-      String albumString = this.gson.toJson(error);
-      res.getWriter().write(albumString);
+      ErrorMsg error = new ErrorMsg().msg("Invalid empty review post request");
+      String result = this.gson.toJson(error);
+      res.getWriter().write(result);
       return;
     }
-    try (Connection connection = this.connectionPool.getConnection()) {
-      String insertAlbumsQuery =
-          "INSERT INTO Albums(Artist,Title,Year,ImageSize) " +
-              "VALUES(?,?,?,?);";
-      PreparedStatement preparedStatement = connection.prepareStatement(insertAlbumsQuery);
-      Pattern pattern = Pattern.compile("artist: (.+?)\\n +title: (.+?)\\n +year: (\\d+)");
-      Matcher matcher = pattern.matcher(profileParameter);
-      AlbumInfo albumsProfile = null;
-      if (matcher.find()) {
-        albumsProfile = new AlbumInfo();
-        albumsProfile.setArtist(matcher.group(1));
-        albumsProfile.setTitle(matcher.group(2));
-        albumsProfile.setYear(matcher.group(3));
-      } else {
-        ErrorMsg errorMsg = new ErrorMsg();
-        errorMsg.setMsg("Invalid post request parameter.");
-        String jsonResponse = gson.toJson(errorMsg);
-        res.getWriter().write(jsonResponse);
-        res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-        return;
-      }
-      if (albumsProfile == null) {
-        ErrorMsg errorMsg = new ErrorMsg();
-        errorMsg.setMsg("Invalid album information");
-        String jsonResponse = gson.toJson(errorMsg);
 
-        res.getWriter().write(jsonResponse);
-        res.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-        return;
+    String urlPath = req.getPathInfo();
+    String[] urlParts = urlPath.split("/");
+    String reviewType = urlParts[1];
+    String albumId = urlParts[2];
+    HashMap<String, String> messageData = new HashMap<>();
+    messageData.put("albumId", albumId);
+    messageData.put("reviewType", reviewType);
+    String messageToSend = new Gson().toJson(messageData);
+
+    String message = null;
+    boolean like = true;
+    if (reviewType.equals("like")) {
+      message = "AlbumID " + albumId + " +1 " + "like";
+    }
+
+    if (reviewType.equals("dislike")) {
+      like = false;
+      message = "AlbumID " + albumId + " +1 " + "dislike";
+    }
+    if (message != null && !message.isEmpty()) {
+      String finalMessage = message;
+      executorService.submit(() -> {
+        try {
+          sendToQueue(messageToSend);
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      });
+    }
+
+    try (java.sql.Connection connection = this.connectionPool.getConnection()) {
+      String updateLikes =
+          "UPDATE AlbumsWithLikes "
+              + "SET Likes = Likes + 1"
+              + "WHERE AlbumId = ?;";
+      String updateDislikes =
+          "UPDATE AlbumsWithLikes "
+              + "SET Dislikes = Dislikes + 1"
+              + "WHERE AlbumId = ?;";
+
+      PreparedStatement preparedStatement;
+      if (like) {
+        preparedStatement = connection.prepareStatement(updateLikes);
+      } else {
+        preparedStatement = connection.prepareStatement(updateDislikes);
       }
-      preparedStatement.setString(1, albumsProfile.getArtist());
-      preparedStatement.setString(2, albumsProfile.getTitle());
-      preparedStatement.setInt(3, Integer.valueOf(albumsProfile.getYear()));
-      preparedStatement.setInt(4, imageSize);
+      preparedStatement.setString(1, albumId);
       res.setStatus(HttpServletResponse.SC_OK);
       preparedStatement.executeUpdate();
       ResultSet resultKey = preparedStatement.getGeneratedKeys();
       int imageId = -1;
-      if(resultKey.next()) {
-        imageId = resultKey.getInt(1);
-      } else {
+      if(!resultKey.next()) {
         throw new SQLException("Unable to retrieve auto-generated key.");
       }
-
-      String imageResult = gson.toJson(new ImageMetaData().albumID(String.valueOf(imageId)).imageSize(String.valueOf(imageSize)));
-      res.getWriter().write(imageResult);
+      res.getWriter().write(message);
     } catch (SQLException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  private void sendToQueue(String msg) throws Exception {
+    try {
+      channel = this.channelPool.removeFirst();
+      if (channel != null) {
+        channel.queueDeclare(queueName, false, false, false, null);
+        channel.basicPublish("", queueName, null, msg.getBytes("UTF-8"));
+        System.out.println(" [x] Sent '" + msg + "'");
+      } else {
+        System.out.println("No channel available");
+        Thread.sleep(1 * 100);
+        return;
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+      throw new Exception("Failed to send to the queue");
+    } finally {
+      if (channel != null) {
+        channelPool.offer(channel);
+      }
     }
   }
 }

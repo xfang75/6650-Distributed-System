@@ -1,26 +1,27 @@
 package client;
 
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 import io.swagger.client.ApiException;
 import io.swagger.client.ApiResponse;
 import io.swagger.client.api.DefaultApi;
+import io.swagger.client.api.LikeApi;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jfree.chart.ChartUtils;
@@ -36,9 +37,6 @@ public class MultipleThreadsClient {
   private static final int START_LOOP_TIMES = 100;
 
   private static final int OFFICIAL_LOOP_TIMES = 100;
-
-  private static final String username = "fangxun";
-  private static final String password = "yangfangxunyangxiangxiang";
 
   // Use a thread safe Integer to count and calculate how many requests failed
   private AtomicInteger successfulRequests = new AtomicInteger(0);
@@ -125,36 +123,13 @@ public class MultipleThreadsClient {
 
     ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
     DefaultApi apiInstance = new DefaultApi();
+    LikeApi likeApiInstance = new LikeApi();
     executor.scheduleAtFixedRate(() -> {
       int requestsCompletedThisSecond = successfulRequests.getAndSet(0);
       throughputList.add(requestsCompletedThisSecond);
       //System.out.println("Throughput: " + requestsCompletedThisSecond + " requests per second");
     }, 1, 1, TimeUnit.SECONDS);
-    ConnectionFactory factory = new ConnectionFactory();
-    Channel channel = null;
-    String queueName = "reviewQueue";
-    String message = "Hello, RabbitMQ!";
-    String jsonData = "{\"key\": \"value\"}";
 
-    try {
-      factory.setUri(MQ_SERVER_URL);
-      factory.setUsername(username);
-      factory.setPassword(password);
-      Connection connection = factory.newConnection();
-      channel = connection.createChannel();
-      channel.queueDeclare(queueName, false, false, false, null);
-
-      // Example: Publish a message to the queue
-
-      channel.basicPublish("", queueName, null, message.getBytes());
-      System.out.println("Sent: '" + message + "'");
-
-    } catch (Exception e) {
-      e.printStackTrace();
-      System.out.println("Error setting up the RabbitMQ"  + e.getMessage());
-    }
-
-    channel.basicPublish("", queueName, null, jsonData.getBytes("UTF-8"));
     try {
       for (int group = 0; group < numThreadGroups; group++) {
         System.out.println("Starting Thread Group " + group);
@@ -162,8 +137,7 @@ public class MultipleThreadsClient {
           executorService.execute(() -> {
             try {
               for (int j = 0; j < callAPIKTime; j++) {
-                this.callAPIRequest(apiInstance, serverURL, "GET");
-                this.callAPIRequest(apiInstance, serverURL, "POST");
+                this.callAPIRequest(apiInstance, serverURL, "POST", likeApiInstance);
               }
             } catch (Exception e) {
               e.printStackTrace();
@@ -189,7 +163,7 @@ public class MultipleThreadsClient {
     }
   }
 
-  private void callAPIRequest(DefaultApi apiInstance, String serverURL, String apiType)
+  private void callAPIRequest(DefaultApi apiInstance, String serverURL, String apiType, LikeApi likeApi)
       throws InterruptedException {
     SingleThreadClient client = new SingleThreadClient();
     boolean requestSuccess = false;
@@ -198,6 +172,7 @@ public class MultipleThreadsClient {
     int responseCode = 0;
     ApiResponse<?> response;
 
+
     while (!requestSuccess && retryCount < MAX_RETRIES) {
       try {
         if (apiType.equals("GET")) {
@@ -205,6 +180,9 @@ public class MultipleThreadsClient {
           responseCode = response.getStatusCode();
         } else {
           response = client.postAlbumWithHttpInfo(apiInstance, serverURL + "albums/");
+          client.postAlbumReviewWithHttpInfo(likeApi, serverURL + "review/", "like");
+          client.postAlbumReviewWithHttpInfo(likeApi, serverURL + "review/", "like");
+          client.postAlbumReviewWithHttpInfo(likeApi, serverURL + "review/", "dislike");
           responseCode = response.getStatusCode();
         }
         requestSuccess = true;
@@ -229,20 +207,5 @@ public class MultipleThreadsClient {
         postList.add(latency);
       }
     }
-  }
-
-  private static DefaultXYDataset createDataset(ArrayList<Integer> throughputList) {
-    DefaultXYDataset dataset = new DefaultXYDataset();
-
-    int totalTime = throughputList.size(); // Total time in seconds
-    double[][] data = new double[2][totalTime];
-    data[0] = new double[totalTime]; // X-axis (seconds)
-    data[1] = new double[totalTime]; // Y-axis (throughput/second)
-    for (int i = 0; i < totalTime; i++) {
-      data[0][i] = i; // Time in seconds
-      data[1][i] = throughputList.get(i); // Throughput for each second
-    }
-    dataset.addSeries("Throughput", data);
-    return dataset;
   }
 }

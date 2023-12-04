@@ -3,6 +3,7 @@ package client;
 import io.swagger.client.ApiException;
 import io.swagger.client.ApiResponse;
 import io.swagger.client.api.DefaultApi;
+import io.swagger.client.api.LikeApi;
 import io.swagger.client.model.AlbumInfo;
 import io.swagger.client.model.AlbumsProfile;
 import io.swagger.client.model.ImageMetaData;
@@ -26,5 +27,14 @@ public class SingleThreadClient {
 
     AlbumsProfile profile = new AlbumsProfile().artist("Sex Pistols").title("Never Mind The Bollocks!").year("1977");
     return apiInstance.newAlbumWithHttpInfo(image, profile);
+  }
+
+  public ApiResponse<Void> postAlbumReviewWithHttpInfo(LikeApi apiInstance, String url, String likeOrDislike) throws ApiException {
+    apiInstance.getApiClient().setBasePath(url);
+    File image = new File("nmtb.png");
+
+    Random rand = new Random();
+    int id = rand.nextInt(10);
+    return apiInstance.reviewWithHttpInfo(likeOrDislike, String.valueOf(id));
   }
 }
